@@ -45,7 +45,12 @@ class TwoLayerNet(object):
     # weights and biases using the keys 'W1' and 'b1' and second layer weights #
     # and biases using the keys 'W2' and 'b2'.                                 #
     ############################################################################
-    pass
+    
+    self.params['W1'] = np.random.normal(0,weight_scale,input_dim*hidden_dim).reshape(input_dim,hidden_dim)
+    self.params['b1'] = np.zeros(hidden_dim)
+    self.params['W2'] = np.random.normal(0,weight_scale,hidden_dim*num_classes).reshape(hidden_dim,num_classes)
+    self.params['b2'] = np.zeros(num_classes)
+
     ############################################################################
     #                             END OF YOUR CODE                             #
     ############################################################################
@@ -75,7 +80,18 @@ class TwoLayerNet(object):
     # TODO: Implement the forward pass for the two-layer net, computing the    #
     # class scores for X and storing them in the scores variable.              #
     ############################################################################
-    pass
+
+    W1 = self.params['W1']
+    b1 = self.params['b1']
+    W2 = self.params['W2']
+    b2 = self.params['b2']
+
+    l1_out, l1_cache = affine_forward(x=X, w=W1, b=b1)
+    l2_out, l2_cache = relu_forward(x=l1_out) 
+    l3_out, l3_cache = affine_forward(x=l2_out, w=W2, b=b2)
+
+    scores = l3_out
+
     ############################################################################
     #                             END OF YOUR CODE                             #
     ############################################################################
@@ -95,7 +111,21 @@ class TwoLayerNet(object):
     # automated tests, make sure that your L2 regularization includes a factor #
     # of 0.5 to simplify the expression for the gradient.                      #
     ############################################################################
-    pass
+
+    l4_out,dl3_out_x = softmax_loss(x=l3_out, y=y) 
+
+    # Loss with regularization
+    loss = l4_out+0.5*self.reg*(np.sum(W1*W1)+np.sum(W2*W2))
+
+    dl2_out_x, dl2_out_w, dl2_out_b = affine_backward(dout=dl3_out_x, cache=l3_cache)
+    dl1_out_x = relu_backward(dout=dl2_out_x, cache=l2_cache)
+    dl0_x, dl0_w, dl0_b = affine_backward(dout=dl1_out_x, cache=l1_cache)
+    
+    grads['W1'] = dl0_w + self.reg*W1
+    grads['b1'] = dl0_b
+    grads['W2'] = dl2_out_w + self.reg*W2
+    grads['b2'] = dl2_out_b
+
     ############################################################################
     #                             END OF YOUR CODE                             #
     ############################################################################
@@ -161,7 +191,23 @@ class FullyConnectedNet(object):
     # beta2, etc. Scale parameters should be initialized to one and shift      #
     # parameters should be initialized to zero.                                #
     ############################################################################
-    pass
+    
+    self.params['W1'] = np.random.normal(0,weight_scale,input_dim*hidden_dim).reshape(input_dim,hidden_dim)
+    self.params['b1'] = np.zeros(hidden_dim)
+    self.params['W2'] = np.random.normal(0,weight_scale,hidden_dim*num_classes).reshape(hidden_dim,num_classes)
+    self.params['b2'] = np.zeros(num_classes)
+
+    pre_layer_dim = input_dim
+
+    for i,cur_hidden_dim in enumerate(hidden_dims):
+      self.params['W'+str(i+1)] = np.random.normal(0,weight_scale,pre_layer_dim*cur_hidden_dim).reshape(pre_layer_dim,cur_hidden_dim)
+      self.params['b'+str(i+1)] = np.zeros(cur_hidden_dim)
+      pre_layer_dim = cur_hidden_dim
+      if self.use_batchnorm:
+        self.params['gamma'+str(i+1)] = 1
+        self.params['beta'+str(i+1)] = 0
+
+
     ############################################################################
     #                             END OF YOUR CODE                             #
     ############################################################################
