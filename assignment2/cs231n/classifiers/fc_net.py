@@ -192,11 +192,6 @@ class FullyConnectedNet(object):
     # parameters should be initialized to zero.                                #
     ############################################################################
     
-    self.params['W1'] = np.random.normal(0,weight_scale,input_dim*hidden_dim).reshape(input_dim,hidden_dim)
-    self.params['b1'] = np.zeros(hidden_dim)
-    self.params['W2'] = np.random.normal(0,weight_scale,hidden_dim*num_classes).reshape(hidden_dim,num_classes)
-    self.params['b2'] = np.zeros(num_classes)
-
     pre_layer_dim = input_dim
 
     for i,cur_hidden_dim in enumerate(hidden_dims):
@@ -206,7 +201,9 @@ class FullyConnectedNet(object):
       if self.use_batchnorm:
         self.params['gamma'+str(i+1)] = 1
         self.params['beta'+str(i+1)] = 0
-
+    
+      self.params['W'+str(self.num_layers)] = np.random.normal(0,weight_scale,pre_layer_dim*num_classes).reshape(pre_layer_dim,num_classes)
+      self.params['b'+str(self.num_layers)] = np.zeros(num_classes)
 
     ############################################################################
     #                             END OF YOUR CODE                             #
@@ -245,7 +242,7 @@ class FullyConnectedNet(object):
     mode = 'test' if y is None else 'train'
 
     # Set train/test mode for batchnorm params and dropout param since they
-    # behave differently during training and testing.
+    # behave dkfferently during training and testing.
     if self.dropout_param is not None:
       self.dropout_param['mode'] = mode   
     if self.use_batchnorm:
@@ -253,6 +250,7 @@ class FullyConnectedNet(object):
         bn_param[mode] = mode
 
     scores = None
+
     ############################################################################
     # TODO: Implement the forward pass for the fully-connected net, computing  #
     # the class scores for X and storing them in the scores variable.          #
@@ -265,7 +263,22 @@ class FullyConnectedNet(object):
     # self.bn_params[1] to the forward pass for the second batch normalization #
     # layer, etc.                                                              #
     ############################################################################
-    pass
+
+    self.params['l0_relu_out'] = X
+
+    for i in range(1,self.num_layers):
+      cur_W = self.params['W'+str(i)]
+      cur_b = self.params['b'+str(i)]
+      self.params['l'+str(i)+'_affine_out'], self.params['l'+str(i)+'_affine_cache'] = affine_forward(x=self.params['l'+str(i-1)+'_relu_out'], w=cur_W, b=cur_b)
+      self.params['l'+str(i)+'_relu_out'], self.params['l'+str(i)+'_relu_cache'] = relu_forward(x=self.params['l'+str(i)+'_affine_out']) 
+
+    last_affine_layer = self.num_layers
+
+    self.params['l'+str(last_affine_layer)+'_affine_out'], self.params['l'+str(last_affine_layer)+'_affine_cache'] = affine_forward(x=self.params['l'+str(last_affine_layer-1)+'_relu_out'], w=self.params['W'+str(last_affine_layer)], b=self.params['b'+str(last_affine_layer)])
+
+    scores = self.params['l'+str(last_affine_layer)+'_affine_out']
+    self.params['softmax_out'],self.params['dl'+str(last_affine_layer)+'_affine_out'] = softmax_loss(x=self.params['l'+str(last_affine_layer)+'_affine_out'], y=y) 
+ 
     ############################################################################
     #                             END OF YOUR CODE                             #
     ############################################################################
@@ -289,6 +302,28 @@ class FullyConnectedNet(object):
     # of 0.5 to simplify the expression for the gradient.                      #
     ############################################################################
     pass
+
+    # Loss with regularization
+    loss = self.params['softmax_out']
+
+    sum_W = 0;
+
+    for i in range(1,self.num_layers+1):
+        cur_W = self.params['W'+str(i)]
+        sum_W += np.sum(cur_W * cur_W)
+    loss += 0.5 * self.reg * sum_W
+
+    
+    self.params['dl'+str(last_affine_layer-1)+'_relu_out'],self.params['dl'+str(last_affine_layer-1)+'_relu_out_w'],self.params['dl'+str(last_affine_layer-1)+'_relu_out_b'] = affine_backward(dout = self.params['dl'+str(last_affine_layer)+'_affine_out'],cache = self.params['l'+str(last_affine_layer)+'_affine_cache'])
+
+    for i in range(last_affine_layer-1,0,-1):
+      self.params['dl'+str(i)+'_affine_out'] = relu_backward(dout=self.params['dl'+str(i)+'_relu_out'],cache=self.params['l'+str(i)+'_relu_cache'])
+      self.params['dl'+str(i-1)+'_relu_out'],self.params['dl'+str(i-1)+'_relu_out_w'],self.params['dl'+str(i-1)+'_relu_out_b'] = affine_backward(dout = self.params['dl'+str(i)+'_affine_out'],cache = self.params['l'+str(i)+'_affine_cache'])
+    
+    for i in range(1,last_affine_layer+1):
+      grads['W'+str(i)] = self.params['dl'+str(i-1)+'_relu_out_w'] + self.reg * self.params['W'+str(i)]
+      grads['b'+str(i)] = self.params['dl'+str(i-1)+'_relu_out_b']
+
     ############################################################################
     #                             END OF YOUR CODE                             #
     ############################################################################
