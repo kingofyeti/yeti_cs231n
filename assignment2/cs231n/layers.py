@@ -191,36 +191,25 @@ def batchnorm_forward(x, gamma, beta, bn_param):
 
 		#step 1: mean (D,)
 		mean_x = np.sum(x,axis=0) / N
-
 		#step 2: sub_x (N,D)
 		sub_x = x-mean_x
-
 		#step 3: var_x (N,D)
 		var_x = sub_x**2	
-
 		#step 4: norm_var_x (D,)
 		norm_var_x = np.sum(var_x,axis=0) / N
-
 		#step 5 stand_var_x (D)
 		stand_var_x = np.sqrt(norm_var_x + eps)
-
 		#step 6: inv_stand_var_x
 		inv_stand_var_x = 1 / stand_var_x
-
 		#step 7: norm_x
 		x_out = sub_x * inv_stand_var_x
-
 		#step 8: y_out
 		y_out = gamma * x_out + beta
 
 		out = y_out
-
 		running_mean = momentum * running_mean + (1 - momentum) * mean_x
 		running_var = momentum * running_var + (1 - momentum) * norm_var_x
-
 		cache = (mean_x,sub_x,var_x,norm_var_x,stand_var_x,inv_stand_var_x,x_out,y_out,gamma,beta,x,bn_param)
-		
-
     #############################################################################
     #                             END OF YOUR CODE                              #
     #############################################################################
@@ -272,6 +261,54 @@ def batchnorm_backward(dout, cache):
   # TODO: Implement the backward pass for batch normalization. Store the      #
   # results in the dx, dgamma, and dbeta variables.                           #
   #############################################################################
+  
+  mean_x,sub_x,var_x,norm_var_x,stand_var_x,inv_stand_var_x,x_out,y_out,gamma,beta,x,bn_param = cache
+  eps = bn_param.get('eps', 1e-5)
+  N,D = dout.shape
+
+    ##step 1: mean (D,)
+    #mean_x = np.sum(x,axis=0) / N
+    ##step 2: sub_x (N,D)
+    #sub_x = x-mean_x
+    ##step 3: var_x (N,D)
+    #var_x = sub_x**2	
+    ##step 4: norm_var_x (D,)
+    #norm_var_x = np.sum(var_x,axis=0) / N
+    ##step 5 stand_var_x (D)
+    #stand_var_x = np.sqrt(norm_var_x + eps)
+    ##step 6: inv_stand_var_x
+    #inv_stand_var_x = 1 / stand_var_x
+    ##step 7: norm_x
+    #x_out = sub_x * inv_stand_var_x
+    ##step 8: y_out
+    #y_out = gamma * x_out + beta
+
+  #step 8:
+  d_y_out = dout
+  d_x_out = d_y_out * gamma
+  # if comes to (N,D) to (D,), then the derivative will be "sum"
+  d_beta = np.sum(d_y_out,axis=0)
+  d_gamma = np.sum(x_out * d_y_out,axis=0)
+  #step 7:
+  d_sub_x = d_x_out * inv_stand_var_x
+  d_inv_stand_var_x = np.sum(d_x_out * sub_x,axis=0)
+  #step 6:
+  d_stand_var_x = d_inv_stand_var_x * (-1) * (stand_var_x**-2)
+  #step 5:
+  d_norm_var_x = d_stand_var_x * (0.5) * ((norm_var_x+eps)**(-0.5))
+  #step 4:
+  d_var_x = d_norm_var_x * (1/float(N)) * np.ones(var_x.shape)
+  #step 3:
+  d_sub_x += d_var_x * 2 * sub_x
+  #step 2:
+  d_x = d_sub_x * 1
+  d_mean_x = -1 * np.sum(d_sub_x,axis=0)
+  #step 1:
+  d_x += d_mean_x * (1/float(N)) * np.ones(x.shape)
+
+  dx = d_x
+  dgamma = d_gamma
+  dbeta = d_beta
   pass
   #############################################################################
   #                             END OF YOUR CODE                              #
