@@ -455,6 +455,35 @@ def conv_forward_naive(x, w, b, conv_param):
   # Hint: you can use the function np.pad for padding.                        #
   #############################################################################
   pass
+
+  # Init parameters
+  N,C,H,W = x.shape
+  F,C,HH,WW = w.shape
+  stride = conv_param['stride']
+  pad = conv_param['pad']
+  H_out = 1 + (H + 2 * pad - HH) / stride
+  W_out = 1 + (W + 2 * pad - WW) / stride
+  out = np.zeros((N,F,H_out,W_out))
+
+  # Padding
+  x_padded = np.zeros((N,C,H + 2 * pad,W + 2 * pad))
+  x_padded[:, : , pad:H + pad, pad:W + pad] = x
+  
+  # curent window position : cwp
+  cwp = {'h': 0,'w' : 0 }
+  # Ugly "four for loop" convulution
+  for n in range(N): 
+    cur_x = x_padded[n,:,:,:]
+    for f in range(F):
+      cur_filter = w[f,:,:,:]
+      for h_index in range(H_out):
+        for w_index in range(W_out):
+          cwp['h'] = h_index * stride
+          cwp['w'] = w_index * stride
+          cur_window = cur_x[:,cwp['h']:cwp['h']+HH,cwp['w']:cwp['w']+WW]
+          # w * x + b
+          out[n,f,h_index,w_index] = np.sum(cur_window * cur_filter) + b[f]
+          
   #############################################################################
   #                             END OF YOUR CODE                              #
   #############################################################################
