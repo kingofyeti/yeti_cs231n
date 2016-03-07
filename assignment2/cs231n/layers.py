@@ -574,9 +574,10 @@ def max_pool_forward_naive(x, pool_param):
     for c in range(C):
       for h_idx in range(H/S):
         for w_idx in range(W/S):
-          cur_x = x[n,c,h_idx*S:h_idx*S+PW,w_idx*S:w_idx*S+PH]
+          cur_x = x[n,c,h_idx*S:h_idx*S+PH,w_idx*S:w_idx*S+PW]
           out[n,c,h_idx,w_idx] = np.max(cur_x)
 
+  
   #############################################################################
   #                             END OF YOUR CODE                              #
   #############################################################################
@@ -600,6 +601,22 @@ def max_pool_backward_naive(dout, cache):
   # TODO: Implement the max pooling backward pass                             #
   #############################################################################
   pass
+  x,pool_param = cache
+  dx = np.zeros(x.shape)
+  PW = pool_param['pool_width']
+  PH = pool_param['pool_height']
+  S = pool_param['stride']
+  N,C,H,W = dout.shape
+
+  for n in range(N):
+    for c in range(C):
+      for h_idx in range(H):
+        for w_idx in range(W):
+          cur_x = x[n,c,h_idx*S:h_idx*S+PW,w_idx*S:w_idx*S+PH]
+          # mask the current window using "=="
+          mask = cur_x == np.max(cur_x)
+          dx[n,c,h_idx * PH:h_idx * PH + PH ,w_idx * PW: w_idx * PW + PW] += dout[n,c,h_idx,w_idx] * mask
+  
   #############################################################################
   #                             END OF YOUR CODE                              #
   #############################################################################
