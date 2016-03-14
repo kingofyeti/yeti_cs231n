@@ -34,7 +34,7 @@ def rnn_step_forward(x, prev_h, Wx, Wh, b):
   ##############################################################################
   pass
   next_h = np.tanh(np.dot(x,Wx) + np.dot(prev_h,Wh) + b)
-  cache = (x,Wx,prev_h,Wh,b)
+  cache = (x,prev_h,Wx,Wh,b)
   ##############################################################################
   #                               END OF YOUR CODE                             #
   ##############################################################################
@@ -63,7 +63,7 @@ def rnn_step_backward(dnext_h, cache):
   # HINT: For the tanh function, you can compute the local derivative in terms #
   # of the output value from tanh.                                             #
   ##############################################################################
-  x,Wx,prev_h,Wh,b = cache
+  x,prev_h,Wx,Wh,b = cache
   # Chain rule: d(tanh(v))/dv = 1 - tanh(v) ** 2
   dv = 1 - np.tanh(np.dot(x,Wx) + np.dot(prev_h,Wh) + b) ** 2
   # Chain rule: dot product
@@ -102,7 +102,22 @@ def rnn_forward(x, h0, Wx, Wh, b):
   # input data. You should use the rnn_step_forward function that you defined  #
   # above.                                                                     #
   ##############################################################################
+  N,T,D = x.shape
+  _,H = h0.shape
+  h = np.zeros((N,T,H))
+
+  hs = {}
+  hs[-1] = h0
+
+  for t in range(T):
+    # Cannot use h[:,-1,:] !!!!!!!!!!!!!1
+    hs[t], _ = rnn_step_forward(x[:,t,:],hs[t-1],Wx,Wh,b)
+    h[:,t,:] = hs[t]
+    
   pass
+
+  cache = (x,hs,Wx,Wh,b)
+
   ##############################################################################
   #                               END OF YOUR CODE                             #
   ##############################################################################
@@ -130,6 +145,26 @@ def rnn_backward(dh, cache):
   # defined above.                                                             #
   ##############################################################################
   pass
+  x,hs,Wx,Wh,b = cache
+  N,T,D = x.shape
+  # h0 == hs[-1]
+  _,H = hs[-1].shape
+  dx = np.zeros((N,T,D))
+  dh0 = np.zeros((N,H))
+  dWx = np.zeros((D,H))
+  dWh = np.zeros((H,H))
+  db = np.zeros(H)
+
+  for t in range(T-1,-1,-1):
+     # provide t_cache in each layer based on x[t] and h[t-1]
+     t_cache = (x[:,t,:],hs[t-1],Wx,Wh,b)
+     # Use dh[t] and the output of dh0 in t layer together!
+     dx[:,t,:], dh0, dWx_t, dWh_t, db_t  = rnn_step_backward(dh[:,t,:] + dh0 ,t_cache)
+     # Update dWx,dWh,db in each layer
+     db += db_t
+     dWx += dWx_t
+     dWh += dWh_t
+
   ##############################################################################
   #                               END OF YOUR CODE                             #
   ##############################################################################
