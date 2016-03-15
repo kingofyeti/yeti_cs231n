@@ -230,6 +230,18 @@ def word_embedding_backward(dout, cache):
   # HINT: Look up the function np.add.at                                       #
   ##############################################################################
   pass
+  x,W = cache
+  N,T,D = dout.shape
+  V, _ = W.shape
+
+  dW = np.zeros_like(W)
+
+  for n in range(N):
+    for t in range(T):
+      # for each dout[:,:,D], dW[:.D] correspondingly ++
+      # W[x[n,t]] is the index of V to D,each (D,) size
+      dW[x[n,t]] += dout[n,t]
+
   ##############################################################################
   #                               END OF YOUR CODE                             #
   ##############################################################################
