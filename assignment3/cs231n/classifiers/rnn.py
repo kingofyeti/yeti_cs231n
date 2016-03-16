@@ -136,6 +136,32 @@ class CaptioningRNN(object):
     # gradients for self.params[k].                                            #
     ############################################################################
     pass
+    
+    #(1)  Affine transformation: features (N,D) ---> (N,H)
+    img_features, img_features_cache = affine_forward(features,W_proj,b_proj)
+    #(2)  Word embedding: captions_in (N,T) ---> (N,T,D)
+    vec_captions_in,vec_captions_in_cache = word_embedding_forward(captions_in,W_embed)
+    #(3)  Vanilla RNN: vec_captions/x:(N,T,D),h0(N,H) ---> h(N,T,H)
+    hidden_captions, hidden_captions_cache = rnn_forward(vec_captions_in,img_features,Wx,Wh,b)
+    #(4)  Temporal affine transformation: h_captions/x (N,T,H) --> (N,T,V) 
+    vocab_captions , vocab_captions_cache = temporal_affine_forward(hidden_captions,W_vocab,b_vocab)
+    #(5)  Temporal softmax loss: vocab_captions/x: (N,T,V) captions_out/y:(N,T) (N,T,V),(N,T) ---> loss and dx
+    loss, d_vocab_captions = temporal_softmax_loss(vocab_captions,captions_out,mask)
+
+    #(4)  
+    d_hidden_captions,d_W_vocab,d_b_vocab = temporal_affine_backward(d_vocab_captions,vocab_captions_cache)
+    #(3)
+    d_vec_captions_in,d_img_features,d_Wx,d_Wh,d_b = rnn_backward(d_hidden_captions,hidden_captions_cache)
+    #(2)
+    d_W_embed =  word_embedding_backward(d_vec_captions_in,vec_captions_in_cache)
+    #(1)
+    d_features,d_W_proj,d_b_proj = affine_backward(d_img_features,img_features_cache)
+
+    grads['W_vocab'],grads['b_vocab'] = d_W_vocab,d_b_vocab
+    grads['Wx'],grads['Wh'],grads['b'] = d_Wx,d_Wh,d_b
+    grads['W_embed'] = d_W_embed
+    grads['W_proj'],grads['b_proj'] = d_W_proj,d_b_proj
+
     ############################################################################
     #                             END OF YOUR CODE                             #
     ############################################################################
