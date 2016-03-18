@@ -136,6 +136,8 @@ class CaptioningRNN(object):
     # gradients for self.params[k].                                            #
     ############################################################################
     pass
+    # Remember: this is the training time RNN, which means you have "feature" ---> as input x 
+    # and "captions" ---> as input y(some part of captions will be count as input x in RNN)
     
     #(1)  Affine transformation: features (N,D) ---> (N,H)
     img_features, img_features_cache = affine_forward(features,W_proj,b_proj)
@@ -224,6 +226,44 @@ class CaptioningRNN(object):
     # a loop.                                                                 #
     ###########################################################################
     pass
+    # Remember: this is the testing time RNN, which means you have "feature" ---> as input x 
+    # and "captions" ---> as output y
+
+    ##(1)  Affine transformation: features (N,D) ---> (N,H)
+    #img_features, img_features_cache = affine_forward(features,W_proj,b_proj)
+    ##(2)  Word embedding: captions_in (N,T) ---> (N,T,D)
+    #vec_captions_in,vec_captions_in_cache = word_embedding_forward(captions_in,W_embed)
+    ##(3)  Vanilla RNN: vec_captions/x:(N,T,D),h0(N,H) ---> h(N,T,H)
+    #hidden_captions, hidden_captions_cache = rnn_forward(vec_captions_in,img_features,Wx,Wh,b)
+    ##(4)  Temporal affine transformation: h_captions/x (N,T,H) --> (N,T,V) 
+    #vocab_captions , vocab_captions_cache = temporal_affine_forward(hidden_captions,W_vocab,b_vocab)
+    ##(5)  Temporal softmax loss: vocab_captions/x: (N,T,V) captions_out/y:(N,T) (N,T,V),(N,T) ---> loss and dx
+    #loss, d_vocab_captions = temporal_softmax_loss(vocab_captions,captions_out,mask)
+    
+    V,D = W_embed.shape 
+    _,H = features.shape
+
+    # Init first caption as self._start (N,1), iterate it later into (N,T) until reach end
+    cap = {}
+    cap[-1] = self._start * np.ones((N,1))
+    # Features stores the hidden layer result, the first is h0, which is the input feature
+    feats = {}
+    feats[-1],_ = affine_forward(features,W_proj,b_proj)
+    # Set first captions to <start>
+    captions[:,0] = self._start
+    # Only max_length-1 because first one is <start>
+    for l in range(max_length-1):
+      #(1) Embedding caption into hidder layer
+      vec_caption,_ = word_embedding_forward(cap[l-1],W_embed)
+      #(2) Step forward, use embedding word(x) and previous hidden layer feature(h)
+      feats[l], _ = rnn_step_forward(vec_caption[:,0,:],feats[l-1],Wx,Wh,b)
+      #(3) Affine feature to vocab
+      vocab_caps,_ = affine_forward(feats[l],W_vocab,b_vocab)
+      #(4) Use argmax to get vocab index
+      captions[:,l+1] = np.argmax(vocab_caps,axis=1)
+      #(5) Store current caption 
+      cap[l] = captions[:,l].reshape(N,1)
+
     ############################################################################
     #                             END OF YOUR CODE                             #
     ############################################################################
